@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>test</title>
+</head>
+<body>
+  <div id="app">
+    <h1>计数器案例</h1>
+    <p>当前计数: {{ count }}</p>
+    <button @click="count++">增加</button>
+    <button @click="count--">减少</button>
+  </div>
+</body>
+
+<script src="../../dist/vue.global.js"></script>
+
+<script>
+  const { ref, createApp } = Vue
+  const App = {
+    setup() {
+      const count = ref(0)
+      function increment() {
+        count.value++
+      }
+      function decrement() {
+        count.value--
+      }
+      return {
+        count,
+        increment,
+        decrement
+      }
+    }
+  }
+  createApp(App).mount('#app')
+</script>
+
+</html>
