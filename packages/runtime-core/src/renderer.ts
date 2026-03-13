@@ -362,8 +362,8 @@ function baseCreateRenderer(
   // Note: functions inside this closure should use `const xxx = () => {}`
   // style in order to prevent being inlined by minifiers.
   const patch: PatchFn = (
-    n1,
-    n2,
+    n1, // 旧节点
+    n2, // 新节点
     container,
     anchor = null,
     parentComponent = null,
@@ -403,7 +403,8 @@ function baseCreateRenderer(
           patchStaticNode(n1, n2, container, namespace)
         }
         break
-      case Fragment:
+      case Fragment: // Fragment (新增的 组件没有根节点就是 Fragment节点)
+        //（<template> 根多节点、v-for 多节点）
         processFragment(
           n1,
           n2,
@@ -418,6 +419,7 @@ function baseCreateRenderer(
         break
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
+          // 处理单个元素节点 （<div> 单节点）
           processElement(
             n1,
             n2,
@@ -430,6 +432,7 @@ function baseCreateRenderer(
             optimized,
           )
         } else if (shapeFlag & ShapeFlags.COMPONENT) {
+          // 若 shapeFlag 包含 ShapeFlags.COMPONENT 标志位 则说明是组件节点
           processComponent(
             n1,
             n2,
@@ -598,6 +601,7 @@ function baseCreateRenderer(
     }
 
     if (n1 == null) {
+      // 旧节点为空，说明是新增节点
       mountElement(
         n2,
         container,
@@ -645,8 +649,11 @@ function baseCreateRenderer(
     // mount children first, since some props may rely on child content
     // being already rendered, e.g. `<select value>`
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+      // 新子节点是文本节点
+      // 直接设置文本内容
       hostSetElementText(el, vnode.children as string)
     } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+      // 新子节点是数组节点
       mountChildren(
         vnode.children as VNodeArrayChildren,
         el,
@@ -792,13 +799,17 @@ function baseCreateRenderer(
     slotScopeIds: string[] | null,
     optimized: boolean,
   ) => {
+    // 旧节点复制给n2.el 和 el，这是因为初次创建时，并没有实际的DOM元素关联
+    // 这个操作就是在重用n1的el， 不需要再创建一个新的，减少性能消耗
     const el = (n2.el = n1.el!)
     if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
       el.__vnode = n2
     }
+    // 取出新节点的patchFlag、dynamicChildren、dirs 指令
     let { patchFlag, dynamicChildren, dirs } = n2
     // #1426 take the old vnode's patch flag into account since user may clone a
     // compiler-generated vnode, which de-opts to FULL_PROPS
+    // 获取旧Props 和 新Props
     patchFlag |= n1.patchFlag & PatchFlags.FULL_PROPS
     const oldProps = n1.props || EMPTY_OBJ
     const newProps = n2.props || EMPTY_OBJ
@@ -806,9 +817,11 @@ function baseCreateRenderer(
 
     // disable recurse in beforeUpdate hooks
     parentComponent && toggleRecurse(parentComponent, false)
+    // 触发 虚拟节点的hook
     if ((vnodeHook = newProps.onVnodeBeforeUpdate)) {
       invokeVNodeHook(vnodeHook, parentComponent, n2, n1)
     }
+    // 如果有指令 那么调用 hook
     if (dirs) {
       invokeDirectiveHook(n2, n1, parentComponent, 'beforeUpdate')
     }
@@ -829,7 +842,7 @@ function baseCreateRenderer(
     ) {
       hostSetElementText(el, '')
     }
-
+    // 相当于递归了
     if (dynamicChildren) {
       patchBlockChildren(
         n1.dynamicChildren!,
@@ -1070,6 +1083,8 @@ function baseCreateRenderer(
       ) {
         // a stable fragment (template root or <template v-for>) doesn't need to
         // patch children order, but it may contain dynamicChildren.
+
+        // Block 编译 为创建的VNode提供一个数组，只有依赖动态数据的节点才会在数组中 dynamicChildren: [h2, button1, button2]
         patchBlockChildren(
           n1.dynamicChildren,
           dynamicChildren,
@@ -1097,6 +1112,7 @@ function baseCreateRenderer(
         // for keyed & unkeyed, since they are compiler generated from v-for,
         // each child is guaranteed to be a block so the fragment will never
         // have dynamicChildren.
+        // 如果没有patchFlag 记录的动态子节点，就直接全量更新
         patchChildren(
           n1,
           n2,
@@ -1270,6 +1286,7 @@ function baseCreateRenderer(
     optimized,
   ) => {
     const componentUpdateFn = () => {
+      // 第一次渲染操作
       if (!instance.isMounted) {
         let vnodeHook: VNodeHook | null | undefined
         const { el, props } = initialVNode
@@ -1411,6 +1428,7 @@ function baseCreateRenderer(
         // #2458: deference mount-only object parameters to prevent memleaks
         initialVNode = container = anchor = null as any
       } else {
+        // 挂载过了，直接更新
         let { next, bu, u, parent, vnode } = instance
 
         if (__FEATURE_SUSPENSE__) {
@@ -1602,6 +1620,7 @@ function baseCreateRenderer(
     const { patchFlag, shapeFlag } = n2
     // fast path
     if (patchFlag > 0) {
+      // 判断是否有key
       if (patchFlag & PatchFlags.KEYED_FRAGMENT) {
         // this could be either fully-keyed or mixed (some keyed some not)
         // presence of patchFlag means children are guaranteed to be arrays
@@ -1618,6 +1637,7 @@ function baseCreateRenderer(
         )
         return
       } else if (patchFlag & PatchFlags.UNKEYED_FRAGMENT) {
+        // 没有key
         // unkeyed
         patchUnkeyedChildren(
           c1 as VNode[],
@@ -1667,10 +1687,12 @@ function baseCreateRenderer(
         // prev children was text OR null
         // new children is array OR null
         if (prevShapeFlag & ShapeFlags.TEXT_CHILDREN) {
+          // 文本节点 清空文本内容
           hostSetElementText(container, '')
         }
         // mount new if array
         if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+          // 新子节点是数组节点
           mountChildren(
             c2 as VNodeArrayChildren,
             container,

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>无key-diff</title>
+</head>
+<body>
+  <div id="app">
+    <h1>列表的展示</h1>
+    <div class="list">
+      <template v-for="item in list">
+        <h1>{{ item.name }}</h1>
+     </template>
+    </div>
+    <button @click="addItem">添加项</button>
+  </div>
+  <script src="../../dist/vue.global.js"></script>
+  <script>
+    const { ref, createApp } = Vue
+    const App = {
+      setup() {
+        const list = ref([
+          { name: '项1' },
+          { name: '项2' },
+          { name: '项3' }
+        ])
+        function addItem() {
+          list.value.push({ name: `项${list.value.length + 1}` })
+        }
+        return {
+          list,
+          addItem,
+        }
+      }
+    }
+    createApp(App).mount('#app')
+  </script>
+</body>
+</html>
