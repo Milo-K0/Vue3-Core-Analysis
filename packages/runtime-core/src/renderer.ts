@@ -1296,6 +1296,7 @@ function baseCreateRenderer(
         toggleRecurse(instance, false)
         // beforeMount hook
         if (bm) {
+          // 触发beforeMount 钩子函数
           invokeArrayFns(bm)
         }
         // onVnodeBeforeMount
@@ -1353,6 +1354,7 @@ function baseCreateRenderer(
           if (__DEV__) {
             startMeasure(instance, `render`)
           }
+          // 执行渲染函数，生成 VNode 子树
           const subTree = (instance.subTree = renderComponentRoot(instance))
           if (__DEV__) {
             endMeasure(instance, `render`)
@@ -1360,6 +1362,7 @@ function baseCreateRenderer(
           if (__DEV__) {
             startMeasure(instance, `patch`)
           }
+          // 执行 patch 函数，将 VNode 子树渲染到 DOM 中
           patch(
             null,
             subTree,
@@ -1376,6 +1379,7 @@ function baseCreateRenderer(
         }
         // mounted hook
         if (m) {
+          // 触发 mounted 钩子函数
           queuePostRenderEffect(m, parentSuspense)
         }
         // onVnodeMounted
@@ -1779,14 +1783,15 @@ function baseCreateRenderer(
     slotScopeIds: string[] | null,
     optimized: boolean,
   ) => {
-    let i = 0
-    const l2 = c2.length
-    let e1 = c1.length - 1 // prev ending index
-    let e2 = l2 - 1 // next ending index
+    let i = 0 // 从头开始的指针
+    const l2 = c2.length // 新节点总长度
+    let e1 = c1.length - 1 // 旧节点最后一个节点的索引
+    let e2 = l2 - 1 // 新节点最后一个节点的索引
 
     // 1. sync from start
     // (a b) c
     // (a b) d e
+    // 1. 从头开始对比，节点相同就更新，不同则跳出循环
     while (i <= e1 && i <= e2) {
       const n1 = c1[i]
       const n2 = (c2[i] = optimized
@@ -1813,6 +1818,7 @@ function baseCreateRenderer(
     // 2. sync from end
     // a (b c)
     // d e (b c)
+    // 2. 从尾开始对比，节点相同就更新，不同则跳出循环
     while (i <= e1 && i <= e2) {
       const n1 = c1[e1]
       const n2 = (c2[e2] = optimized
@@ -1844,6 +1850,7 @@ function baseCreateRenderer(
     // (a b)
     // c (a b)
     // i = 0, e1 = -1, e2 = 0
+    // 3. 旧节点没了，新节点还有剩余，则挂载新节点
     if (i > e1) {
       if (i <= e2) {
         const nextPos = e2 + 1
@@ -1874,6 +1881,7 @@ function baseCreateRenderer(
     // a (b c)
     // (b c)
     // i = 0, e1 = 0, e2 = -1
+    // 4. 新节点遍历完，旧节点还有剩余，则卸载旧节点
     else if (i > e2) {
       while (i <= e1) {
         unmount(c1[i], parentComponent, parentSuspense, true)
@@ -1885,11 +1893,18 @@ function baseCreateRenderer(
     // [i ... e1 + 1]: a b [c d e] f g
     // [i ... e2 + 1]: a b [e d c h] f g
     // i = 2, e1 = 4, e2 = 5
+    // 5. 核心：乱序节点处理（最长递增子序列 LIS）
+    // 例子：
+    // ['a', 'b', ('c', 'd', 'e'), 'f', 'g']
+    // ['a', 'b', ('d', 'e', 'c', 'h'), 'f', 'g']
+    // 经过上面的操作后，i = 2, e1 = 4, e2 = 5
     else {
       const s1 = i // prev starting index
       const s2 = i // next starting index
 
       // 5.1 build key:index map for newChildren
+      // 5.1 为新的节点，构建一个 key:index 映射表 目的是快速定位key在数组中的位置
+      // Map({d: 2, e: 3, c: 4, h: 5})
       const keyToNewIndexMap: Map<PropertyKey, number> = new Map()
       for (i = s2; i <= e2; i++) {
         const nextChild = (c2[i] = optimized
@@ -1909,22 +1924,42 @@ function baseCreateRenderer(
 
       // 5.2 loop through old children left to be patched and try to patch
       // matching nodes & remove nodes that are no longer present
+
+      // 旧的列表: [c, d, e]
+      // 新的列表: [d, e, c, h]
+      // newIndexToOldIndexMap: [0, 0, 0, 0]
+      // 遍历旧节点 [c, d, e]
+      // 处理c
+      // 从keyToNewIndexMap中获取c的索引4
+      // newIndexToOldIndexMap[4 - 2(旧索引开始的位置)] = i + 1 = 3
+      // newIndexToOldIndexMap: [0, 0, 3, 0]
+      // 处理d
+      // 从keyToNewIndexMap中获取d的索引2
+      // newIndexToOldIndexMap[2 - 2(旧索引开始的位置)] = i + 1 = 4
+      // newIndexToOldIndexMap: [4, 0, 3, 0]
+      // 从keyToNewIndexMap中获取e的索引3
+      // newIndexToOldIndexMap[3 - 2(旧索引开始的位置)] = i + 1 = 5
+      // newIndexToOldIndexMap: [4, 5, 3, 0]
+
+      // 遍历旧节点
       let j
-      let patched = 0
-      const toBePatched = e2 - s2 + 1
-      let moved = false
+      let patched = 0 // 记录已经处理的节点数量
+      const toBePatched = e2 - s2 + 1 // 记录需要处理的节点数量
+      let moved = false // 记录是否需要移动节点
       // used to track whether any node has moved
-      let maxNewIndexSoFar = 0
+      let maxNewIndexSoFar = 0 // 记录最新节点的位置，判断是否移动
       // works as Map<newIndex, oldIndex>
       // Note that oldIndex is offset by +1
       // and oldIndex = 0 is a special value indicating the new node has
       // no corresponding old node.
       // used for determining longest stable subsequence
       const newIndexToOldIndexMap = new Array(toBePatched)
+      // 遍历 toBePatched 并且初始化为 0
       for (i = 0; i < toBePatched; i++) newIndexToOldIndexMap[i] = 0
-
+      // 遍历旧节点 [c, d, e]
       for (i = s1; i <= e1; i++) {
         const prevChild = c1[i]
+        // 如果patched 大于等于 toBePatched 说明新节点遍历完了，旧节点还有剩余，则卸载旧节点
         if (patched >= toBePatched) {
           // all new children have been patched so this can only be a removal
           unmount(prevChild, parentComponent, parentSuspense, true)
@@ -1946,12 +1981,15 @@ function baseCreateRenderer(
           }
         }
         if (newIndex === undefined) {
+          // 没有找到对应的新节点，卸载旧节点
           unmount(prevChild, parentComponent, parentSuspense, true)
         } else {
           newIndexToOldIndexMap[newIndex - s2] = i + 1
           if (newIndex >= maxNewIndexSoFar) {
+            // 新节点的索引大于等于 maxNewIndexSoFar 说明新节点在旧节点的后面，不需要移动
             maxNewIndexSoFar = newIndex
           } else {
+            // 新节点的索引小于 maxNewIndexSoFar 说明新节点在旧节点的前面，需要移动
             moved = true
           }
           patch(

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>有key-diff</title>
+</head>
+<body>
+  <div id="app">
+    <h1>列表的展示</h1>
+    <div class="list">
+      <template v-for="item in letters" :key="item">
+        {{ item }}
+     </template>
+    </div>
+    <button @click="changeLetters">改变字母顺序</button>
+  </div>
+  <script src="../../dist/vue.global.js"></script>
+  <script>
+    const { ref, createApp } = Vue
+    const App = {
+      setup() {
+        const letters = ref(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"])
+        const changeLetters = () => {
+          letters.value = ["A", "B", "D", "E", "C", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+        }
+        
+        return {
+          letters,
+          changeLetters,
+        }
+      }
+    }
+    createApp(App).mount('#app')
+
+  </script>
+</body>
+</html>
